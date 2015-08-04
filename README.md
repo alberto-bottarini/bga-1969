@@ -1,2 +1,2 @@
-# bga-1969
-BoardGameArena - 1969
+# BoardGameArena - 1969
+Implementation of 1969 for BoardGameArena platform
