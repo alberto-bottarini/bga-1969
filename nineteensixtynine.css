@@ -224,6 +224,11 @@
     height: 25px;
     background: #92A7A7;
     border-radius: 25px;
+    display: none;
+}
+
+.player-sheet.player-board-spy .player-sheet-spy{
+    display: block;
 }
 
 .player-sheet-orbital-module .player-sheet-spy,

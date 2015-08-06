@@ -73,6 +73,14 @@
       $this->ajaxResponse();  
     }
 
+    public function confirmSpyPlace() {
+      $this->setAjaxMode();
+      $sheet = $this->getArg("sheet", AT_enum, true, $this->game->playerBoardTypeList[0], $this->game->playerBoardTypeList);
+      $playerId = $this->getArg("player", AT_int);
+      $this->game->acConfirmSpyPlace($sheet, $playerId);
+      $this->ajaxResponse(); 
+    }
+
   }
   
 

@@ -74,6 +74,9 @@ function (dojo, declare) {
             dojo.forEach(gamedatas.playersheet, function(playersheet) {
                 that.addScientistOnBoard(playersheet.playerId, playersheet.sheetType, playersheet.scientistType, playersheet.number);
             });
+            dojo.forEach(gamedatas.playersheetSpy, function(playersheetSpy) {
+                that.addSpyOnBoard(playersheetSpy.playerId, playersheetSpy.sheetType);
+            })
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
@@ -199,6 +202,11 @@ function (dojo, declare) {
         addScientistOnBoard: function(playerId, sheetType, scientistType, number) {
             var node = this.getPlayerSheetItem(playerId, sheetType);
             node.addClass("player-board-scientist-" + number +"-" + scientistType);
+        },
+
+        addSpyOnBoard: function(playerId, sheetType) {
+            var node = this.getPlayerSheetItem(playerId, sheetType);
+            node.addClass("player-board-spy");
         },
 
         ///////////////////////////////////////////////////
@@ -389,7 +397,10 @@ function (dojo, declare) {
                 var matches = evt.target.id.match(/player-sheet-([0-9]*)-([a-z\-]*)/) 
                 var player = matches[1];
                 var sheet = matches[2];
-                alert(player + sheet);
+                this.ajaxcall('/nineteensixtynine/nineteensixtynine/confirmSpyPlace.html', { lock: true,
+                    player: player,
+                    sheet: sheet
+                }, this, function() { });
             }
         },
 
@@ -404,7 +415,8 @@ function (dojo, declare) {
             dojo.subscribe( "newRound", this, this.notifNewRound );
             dojo.subscribe( "scorePointAcquired", this, this.notifScorePointAcquired );
             dojo.subscribe( "moneyChanged", this, this.notifMoneyChanged);
-            dojo.subscribe( "scientistPurchased", this, this.notifScientistPurchased)
+            dojo.subscribe( "scientistPurchased", this, this.notifScientistPurchased);
+            dojo.subscribe( "spyPurchased", this, this.notifSpyPurchased);
         },  
 
         notifNewRound: function(notif) {
@@ -428,8 +440,13 @@ function (dojo, declare) {
                 scientistType = notif.args.scientistType,
                 sheetType = notif.args.sheetType,
                 number = notif.args.number;
-            console.log(playerId, sheetType, scientistType, number);
             this.addScientistOnBoard(playerId, sheetType, scientistType, number);
+        },
+
+        notifSpyPurchased: function(notif) {
+            var playerId = notif.args.playerId || this.getActivePlayerId(),
+                sheetType = notif.args.sheetType;
+            this.addSpyOnBoard(playerId, sheetType);
         }
         
    });             

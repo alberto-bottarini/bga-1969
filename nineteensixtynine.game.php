@@ -134,6 +134,7 @@ class nineteensixtynine extends Table
 
         $result['currentRound'] = $this->getGameStateValue("current_round");
         $result['playersheet'] = $this->getObjectListFromDB("SELECT player_id as playerId, type AS sheetType, scientist_type AS scientistType, number AS number FROM playerboard WHERE scientist_type IS NOT NULL" );
+        $result['playersheetSpy'] = $this->getObjectListFromDB("SELECT player_id as playerId, type AS sheetType FROM playerboard_spy WHERE playerboard_id IS NOT NULL");
   
         return $result;
     }
@@ -213,7 +214,16 @@ class nineteensixtynine extends Table
         $toUpdate = $this->getObjectFromDB("SELECT id, number FROM playerboard WHERE player_id = $playerId AND type = '$sheetType' AND scientist_type IS NULL ORDER BY number LIMIT 1");
         $toUpdateId = $toUpdate['id'];
         $this->DbQuery("UPDATE playerboard SET scientist_type = '$scientistType' WHERE id = $toUpdateId");
-        return $toUpdate['number'];
+        return $toUpdate;
+    }
+
+    /*
+     * Fill an empty playerboard_spy with a spy
+     * @param $playerId
+     * @param $sheetType
+     */
+    function dbPurchaseSpy($playerId, $sheetType, $playerBoardId) {
+        $this->DbQuery("UPDATE playerboard_spy SET playerboard_id = $playerBoardId WHERE player_id = $playerId AND type = '$sheetType'");
     }
 
     /*
@@ -285,19 +295,37 @@ class nineteensixtynine extends Table
     function valScientistIsPurchasable($playerId, $scientistType, $sheetType, $exception = true) {
         $fromDb = $this->getObjectListFromDB("SELECT scientist_type as type FROM playerboard WHERE player_id = $playerId AND type = '$sheetType' AND scientist_type IS NOT NULL");
         if(count($fromDb) == 0) {
-            $assumable = true;
+            $purchasable = true;
         } else if(count($fromDb) > 1) {
-            $assumable = false;
+            $purchasable = false;
         } else {
-            if($scientistType == 'basic') $assumable = true;
+            if($scientistType == 'basic') $purchasable = true;
             else {
-                $assumable = $fromDb[0]['type'] != $scientistType;
+                $purchasable = $fromDb[0]['type'] != $scientistType;
             }
         }
-        if($exception && !$assumable) {
+        if($exception && !$purchasable) {
             throw new BgaUserException( self::_("You cannot assume this scientist on this research box") );
         }
-        return $assumable;
+        return $purchasable;
+    }
+
+    function valSpyIsPurchasable($currentPlayerId, $sheetType, $targetPlayerId, $exception = true) {
+        if($currentPlayerId == $targetPlayerId) {
+            $purchasable = false;
+        } else {
+            $availableSheetList = $this->getObjectListFromDB("SELECT type FROM playerboard_spy WHERE player_id = $currentPlayerId AND playerboard_id IS NULL");
+            if(!in_array($sheetType, array_map(create_function('$o', 'return $o[\'type\'];'), $availableSheetList))) {
+                $purchasable = false;
+            } else {
+                $counter = $this->getObjectFromDB("SELECT COUNT(*) AS count FROM playerboard WHERE player_id = $targetPlayerId AND type = '$sheetType' AND scientist_type = 'spy'");
+                $purchasable = $counter['count'] == 0;
+            }
+        }
+        if($exception && !$purchasable) {
+            throw new BgaUserException( self::_("You cannot assume spy on this research box") );
+        }
+        return $purchasable;
     }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -376,7 +404,7 @@ class nineteensixtynine extends Table
         $pendingScientistCost = $this->matScientistList[$pendingScientistType]['price'];
         
         $this->valScientistIsPurchasable($playerId, $pendingScientistType, $sheetType);
-        $scientistNumber = $this->dbPurchaseScientist($pendingScientistType, $playerId, $sheetType);
+        $purchasedScientist = $this->dbPurchaseScientist($pendingScientistType, $playerId, $sheetType);
         $this->dbIncMoney($playerId, -$pendingScientistCost);
 
         $this->notifyAllPlayers("moneyChanged", "", array(
@@ -387,7 +415,35 @@ class nineteensixtynine extends Table
             "playerId" => $playerId,
             "scientistType" => $pendingScientistType,
             "sheetType" => $sheetType,
-            "number" => $scientistNumber
+            "number" => $purchasedScientist['number']
+        ));
+
+        //TODO notifica messaggio
+        $this->gamestate->nextState('purchase');
+    }
+
+    function acConfirmSpyPlace($sheetType, $targetPlayerId) {
+        $playerId = $this->getActivePlayerId();
+        $spyCost = $this->matSpy['price'];
+
+        $this->valSpyIsPurchasable($playerId, $sheetType, $targetPlayerId);
+        $purchasedSpy = $this->dbPurchaseScientist('spy', $targetPlayerId, $sheetType);
+        $this->dbPurchaseSpy($playerId, $sheetType, $purchasedSpy['id']);
+        $this->dbIncMoney($playerId, -$spyCost);
+
+        $this->notifyAllPlayers("moneyChanged", "", array(
+            "playerId" => $playerId,
+            "money" => -$spyCost
+        ));
+        $this->notifyAllPlayers("scientistPurchased", "", array(
+            "playerId" => $targetPlayerId,
+            "scientistType" => 'spy',
+            "sheetType" => $sheetType,
+            "number" => $purchasedSpy['number']
+        ));
+        $this->notifyAllPlayers("spyPurchased", "", array(
+            "playerId" => $playerId,
+            "sheetType" => $sheetType
         ));
 
         //TODO notifica messaggio
@@ -440,8 +496,20 @@ class nineteensixtynine extends Table
     }
 
     function argPlaceSpy() {
+        $return = array();
+        $currentPlayerId = $this->getActivePlayerId();
+        $playerIdList = array_keys($this->loadPlayersBasicInfos());
+        foreach($playerIdList as $playerId) if($playerId != $currentPlayerId) {
+            $tempPlayer = array();
+            foreach($this->playerBoardTypeList as $sheetType) {                
+                if($this->valSpyIsPurchasable($currentPlayerId, $sheetType, $playerId, false)) {
+                    $tempPlayer[] = $sheetType;
+                }
+            }
+            $return[$playerId] = $tempPlayer;
+        }
         return array(
-            "availableSheets" => $this->dbGetAssumableSpies($this->getActivePlayerId())
+            "availableSheets" => $return
         );
     }
 
