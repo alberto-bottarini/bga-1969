@@ -66,6 +66,12 @@
       $this->ajaxResponse();  
     }
 
+    public function purchaseIntelligenceCard() {
+      $this->setAjaxMode();
+      $this->game->acPurchaseCard();
+      $this->ajaxResponse();  
+    }
+
     public function confirmScientistPlace() {
       $this->setAjaxMode();
       $sheet = $this->getArg("sheet", AT_enum, true, $this->game->playerBoardTypeList[0], $this->game->playerBoardTypeList);

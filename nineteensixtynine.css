@@ -42,8 +42,8 @@
 #board #intelligence-card-trigger {
     bottom: 8px;
     left: 8px;
-    width: 150px;
-    height: 155px;
+    width: 89px;
+    height: 140px;
 }
 
 #board #genious-trigger {
@@ -252,6 +252,30 @@
     top: 44px;
     left: 7px; 
 }
+
+.intelligence-card {
+    display: inline-block;
+    margin: 3px;
+    border: 2px solid #26282B;
+    background-image:url('img/intelligence-card.png'); 
+    width:40px; 
+    height:48px;
+}
+.intelligence-card-1 { background-position:0 0; }
+.intelligence-card-2 { background-position:0 -53px; }
+.intelligence-card-3 { background-position:0 -106px; }
+
+.user-board-box { display: inline-block; margin-right: 15px; }
+.user-board-box .value { position: relative; top: -4px; left: 4px; }
+.user-board { background-image:url('img/user-board.png'); width:28px; height:21px; display: inline-block; }
+.user-board-flag-canada { background-position:0 0; }
+.user-board-flag-france { background-position:0 -26px; }
+.user-board-flag-germany { background-position:0 -52px; }
+.user-board-flag-russia { background-position:0 -78px; }
+.user-board-flag-usa { background-position:0 -104px; }
+.user-board-intelligence-card { background-position:0 -130px; }
+.user-board-money { background-position:0 -156px; }
+
 
 .clear {
     clear:both;

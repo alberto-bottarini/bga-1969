@@ -44,6 +44,7 @@
 
         $this->tpl['YOUR_RESEARCH_BOARDS'] = self::_("Your research boards");
         $this->tpl['OTHER_PLAYERS_BOARDS'] = self::_("Other players' boards");
+        $this->tpl['YOUR_CARD_HAND']       = self::_("Your cards hand");
         
         foreach($players as $player) {
           if($player['player_id'] == $current_player_id) {

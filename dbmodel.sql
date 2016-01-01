@@ -34,21 +34,7 @@
 
 
 ALTER TABLE `player` ADD `player_money` INT UNSIGNED NOT NULL DEFAULT 0;
-
-CREATE TABLE IF NOT EXISTS `scientist` (
-	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-	`type` VARCHAR(10) NOT NULL,
-	`location` VARCHAR(10) NOT NULL,
-	`player_id` int(10) NULL,
-   	PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
-
-CREATE TABLE IF NOT EXISTS `spy` (
-	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-	`location` VARCHAR(10) NOT NULL,
-	`player_id` int(10) NULL,
-	PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+ALTER TABLE `player` ADD `player_country` VARCHAR(20) NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS `playerboard` (
 	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -64,5 +50,14 @@ CREATE TABLE IF NOT EXISTS `playerboard_spy` (
 	`player_id` int(10) NOT NULL,
 	`type` VARCHAR(20) NOT NULL,
 	`playerboard_id` int(10) NULL,
+   	PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+
+CREATE TABLE IF NOT EXISTS `intelligence_card` (
+	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+	`location` VARCHAR(20) NOT NULL,
+	`player_id` int(10) NULL,
+	`point` int(1) NOT NULL,
+	`position` int(2) NOT NULL,
    	PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;

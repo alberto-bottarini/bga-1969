@@ -103,8 +103,8 @@ $machinestates = array(
         "descriptionmyturn" => clienttranslate('${you} must purchase scientists or intelligence cards'),
         "type" => "activeplayer",
         "args" => "argPurchase",
-        "possibleactions" => array( "drawIntelligenceCard", "purchaseScientist", "purchaseSpy", "pass" ),
-        "transitions" => array( "placeScientist" => 31, "placeSpy" => 32 )
+        "possibleactions" => array( "purchaseIntelligenceCard", "purchaseScientist", "purchaseSpy", "pass" ),
+        "transitions" => array( "placeScientist" => 31, "placeSpy" => 32, "afterPurchase" => 35 )
     ),
 
     31 => array(
@@ -120,7 +120,7 @@ $machinestates = array(
     32 => array(
         "name" => "placeSpy",
         "description" => clienttranslate('${actplayer} must place the spy on an empty slot on some other player\'s research sheets'),
-        "descriptionmyturn" => clienttranslate('${you} must place the spy on an empty slot on some other player\'s your research sheets'),
+        "descriptionmyturn" => clienttranslate('${you} must place the spy on an empty slot on some other player\'s research sheets'),
         "type" => "activeplayer",
         "args" => "argPlaceSpy",
         "possibleactions" => array( "confirmSpyPlace" ),

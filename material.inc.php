@@ -49,8 +49,23 @@ $this->matScientistList = array(
 $this->matSpy = array(
 	'name' => clienttranslate('spy'),
     'nametr' => self::_('spy'),
-    'price' => 3,
+    'price' => 7,
     'quantity' => 10
 );
 
+$this->matIntelligenceCards = array(
+    array(
+        'point' => 1,
+        'quantity' => 13
+    ),
+    array(
+        'point' => 2,
+        'quantity' => 13
+    ),
+    array(
+        'point' => 3,
+        'quantity' => 13
+    )
+);
 
+$this->matCountries = array('usa', 'france', 'russia', 'germany', 'canada');

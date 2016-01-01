@@ -73,12 +73,14 @@ class nineteensixtynine extends Table
         self::DbQuery( $sql ); 
 
         $default_colors = array( "ff0000", "008000", "0000ff", "ffa500", "773300" );
+        shuffle($this->matCountries);
 
-        $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
+        $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar, player_country) VALUES ";
         $values = array();
         foreach( $players as $player_id => $player ) {
             $color = array_shift( $default_colors );
-            $values[] = "('".$player_id."','$color','".$player['player_canal']."','".addslashes( $player['player_name'] )."','".addslashes( $player['player_avatar'] )."')";
+            $country = array_shift ($this->matCountries );
+            $values[] = "('".$player_id."','$color','".$player['player_canal']."','".addslashes( $player['player_name'] )."','".addslashes( $player['player_avatar'] )."','".$country."')";
         }
         $sql .= implode( $values, ',' );
         self::DbQuery( $sql );
@@ -101,6 +103,20 @@ class nineteensixtynine extends Table
                 foreach(range(1, 2) as $i) $this->DbQuery( "INSERT INTO playerboard(player_id, number, type) VALUES($player_id, $i, '$type')" );    
                 $this->DbQuery( "INSERT INTO playerboard_spy(player_id, type) VALUES($player_id, '$type')" );                
             }
+        }
+
+        //create cards
+        foreach($this->matIntelligenceCards as $card) {
+            $point = $card['point'];
+            for($i = 0; $i < $card['quantity']; $i++) {
+                $this->DbQuery( "INSERT INTO intelligence_card(point, location, position) VALUES($point, 'deck', 0)" );
+            }
+        }
+        $cardList = $this->getObjectListFromDB("SELECT id from intelligence_card");
+        shuffle($cardList);
+        foreach($cardList as $index => $card) {
+            $id = $card['id'];
+            $this->DbQuery( "UPDATE intelligence_card SET position = $index WHERE id = $id" );
         }
 
         //new game bug
@@ -127,14 +143,21 @@ class nineteensixtynine extends Table
     
         // Get information about players
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
-        $sql = "SELECT player_id id, player_score score, player_money money FROM player ";
+        $sql = "SELECT player_id id, player_score score, player_money money, player_country country FROM player ";
         $result['players'] = self::getCollectionFromDb( $sql );
   
-        // TODO: Gather all information about current game situation (visible by player $current_player_id).
-
         $result['currentRound'] = $this->getGameStateValue("current_round");
         $result['playersheet'] = $this->getObjectListFromDB("SELECT player_id as playerId, type AS sheetType, scientist_type AS scientistType, number AS number FROM playerboard WHERE scientist_type IS NOT NULL" );
         $result['playersheetSpy'] = $this->getObjectListFromDB("SELECT player_id as playerId, type AS sheetType FROM playerboard_spy WHERE playerboard_id IS NOT NULL");
+        $result['playerCardNumber'] = $this->getCollectionFromDB("SELECT player_id as playerId, COUNT(*) as countCard FROM intelligence_card WHERE location = 'player' GROUP BY player_id");
+
+        foreach($this->loadPlayersBasicInfos() as $playerId => $playerData) {
+            if(!array_key_exists($playerId, $result['playerCardNumber'])) {
+                $result['playerCardNumber'][$playerId] = array('playerId' => $playerId, 'countCard' => 0);
+            }
+        }
+
+        $result['myIntelligenceCard'] = $this->getObjectListFromDB("SELECT * FROM intelligence_card where player_id = $current_player_id");
   
         return $result;
     }
@@ -203,6 +226,11 @@ class nineteensixtynine extends Table
         return $counter['count'] < $this->matSpy['quantity']; 
     }
 
+    function dbAreIntelligenceCardsAvailable() {
+        $counter = $this->getObjectFromDB( "SELECT COUNT(*) AS count FROM intelligence_card WHERE location = 'deck'" );
+        return $counter['count'] > 0; 
+    }
+
 	/*
 	 * Fill an empty playerboard with a scientist
      * @param $scientistType
@@ -224,6 +252,13 @@ class nineteensixtynine extends Table
      */
     function dbPurchaseSpy($playerId, $sheetType, $playerBoardId) {
         $this->DbQuery("UPDATE playerboard_spy SET playerboard_id = $playerBoardId WHERE player_id = $playerId AND type = '$sheetType'");
+    }
+
+    function dbPurchaseIntelligenceCard($playerId) {
+        $card = $this->getObjectFromDB('SELECT * FROM intelligence_card WHERE location="deck" ORDER BY position LIMIT 1');
+        $cardId = $card['id'];
+        $this->DbQuery("UPDATE intelligence_card SET location='player', player_id=$playerId WHERE id = $cardId");
+        return $card;
     }
 
     /*
@@ -290,6 +325,14 @@ class nineteensixtynine extends Table
             throw new BgaUserException( self::_("Spies are no more available to hire") );
         }
         return $available;   
+    }
+
+    function valIntelligenceCardsAreAvailable($exception = true) {
+        $available = $this->dbAreIntelligenceCardsAvailable();
+        if($exception && !$available) {
+            throw new BgaUserException( self::_("Intelligence Cards are no more available to draw") );
+        }
+        return $available;
     }
 
     function valScientistIsPurchasable($playerId, $scientistType, $sheetType, $exception = true) {
@@ -397,6 +440,34 @@ class nineteensixtynine extends Table
         $this->gamestate->nextState('placeSpy');
     }
 
+    function acPurchaseCard() {
+        $playerId = $this->getActivePlayerId();
+        $playerName = $this->getActivePlayerName();
+        $this->valIntelligenceCardsAreAvailable();
+        $this->valUserHasMoney($playerId, 2);
+
+        $purchasedCard = $this->dbPurchaseIntelligenceCard($playerId);
+
+        $this->dbIncMoney($playerId, -2);
+        $this->notifyAllPlayers("moneyChanged", "", array(
+            "playerId" => $playerId,
+            "money" => -2
+        ));
+        $this->notifyAllPlayers("intelligenceCardPurchased", "", array(
+            "playerId" => $playerId
+        ));
+        $this->notifyPlayer($playerId, "intelligenceCardDrawn", "", array(
+            "intelligenceCard" => $purchasedCard
+        ));
+
+        $this->notifyAllPlayers("message", clienttranslate('${playerName} purchases an intellingece card.'), array(
+            "playerName" => $playerName
+        ));
+        $this->notifyPlayer($playerId, "message", clienttranslate('You have drawn an intellingece card with value ${value}.'), array(
+            "value" => $purchasedCard['point']
+        ));
+    }
+
     function acConfirmScientistPlace($sheetType) {
         $pendingScientistType = $this->intToPersonType($this->getGameStateValue("pending_person_type"));
 		//TODO ha senso rimuovere il pending o chissenefrega?
@@ -477,9 +548,12 @@ class nineteensixtynine extends Table
                 }
             }
         }
+        $availableSpies = $this->valSpiesAreAvailable(false) && $this->valUserHasMoney($playerId, $this->matSpy['price'], false);
+        $availableIntelligenceCards = $this->valIntelligenceCardsAreAvailable(false) && $this->valUserHasMoney($playerId, 2, false);
         return array(
             "availableScientists" => $availableScientists,
-            "availableSpies" => $this->valSpiesAreAvailable(false) && $this->valUserHasMoney($playerId, $this->matSpy['price'], false)
+            "availableSpies" => $availableSpies,
+            "availableIntelligenceCards" => $availableIntelligenceCards
         );
     }
 
@@ -496,7 +570,7 @@ class nineteensixtynine extends Table
     }
 
     function argPlaceSpy() {
-        $return = array();
+        $availableSheets = array();
         $currentPlayerId = $this->getActivePlayerId();
         $playerIdList = array_keys($this->loadPlayersBasicInfos());
         foreach($playerIdList as $playerId) if($playerId != $currentPlayerId) {
@@ -506,10 +580,10 @@ class nineteensixtynine extends Table
                     $tempPlayer[] = $sheetType;
                 }
             }
-            $return[$playerId] = $tempPlayer;
+            $availableSheets[$playerId] = $tempPlayer;
         }
         return array(
-            "availableSheets" => $return
+            "availableSheets" => $availableSheets
         );
     }
 
